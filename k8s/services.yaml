@@ -1,0 +1,130 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: event-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: event-service}
+  template:
+    metadata:
+      labels: {app: event-service}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+        - name: app
+          image: dinuar/event-service-img:v3
+          ports: [{containerPort: 8000}]
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef: {name: db-credentials, key: EVENT_DB_URL}
+            - name: SNS_TOPIC_ARN                       # <-- new
+              value: "arn:aws:sns:ap-south-1:656019697996:seats-low"
+            - name: SEAT_THRESHOLD
+              value: "10"
+            - name: AWS_REGION
+              value: "ap-south-1"
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef: {name: aws-sns-publisher, key: AWS_ACCESS_KEY_ID}
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef: {name: aws-sns-publisher, key: AWS_SECRET_ACCESS_KEY}
+          readinessProbe:
+            httpGet: {path: /health, port: 8000}
+            initialDelaySeconds: 5
+          resources:
+            requests: {memory: "64Mi", cpu: "25m"}
+            limits: {memory: "160Mi", cpu: "250m"}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: event-service
+spec:
+  selector: {app: event-service}
+  ports: [{port: 80, targetPort: 8000}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: program-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: program-service}
+  template:
+    metadata:
+      labels: {app: program-service}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+        - name: app
+          image: dinuar/program-service-img:v2
+          ports: [{containerPort: 8000}]
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef: {name: db-credentials, key: PROGRAM_DB_URL}
+          readinessProbe:
+            httpGet: {path: /health, port: 8000}
+            initialDelaySeconds: 5
+          resources:
+            requests: {memory: "64Mi", cpu: "25m"}
+            limits: {memory: "160Mi", cpu: "250m"}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: program-service
+spec:
+  selector: {app: program-service}
+  ports: [{port: 80, targetPort: 8000}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: registration-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: registration-service}
+  template:
+    metadata:
+      labels: {app: registration-service}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+        - name: app
+          image: dinuar/registration-service-img:v2
+          ports: [{containerPort: 8000}]
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef: {name: db-credentials, key: REG_DB_URL}
+            - name: EVENT_SERVICE_URL
+              value: "http://event-service"
+          readinessProbe:
+            httpGet: {path: /health, port: 8000}
+            initialDelaySeconds: 5
+          resources:
+            requests: {memory: "64Mi", cpu: "25m"}
+            limits: {memory: "160Mi", cpu: "250m"}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: registration-service
+spec:
+  selector: {app: registration-service}
+  ports: [{port: 80, targetPort: 8000}]

@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: metabase
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels: {app: metabase}
+  template:
+    metadata:
+      labels: {app: metabase}
+    spec:
+      containers:
+        - name: metabase
+          image: metabase/metabase:latest
+          ports: [{containerPort: 3000}]
+          env:
+            - {name: MB_DB_TYPE, value: "postgres"}
+            - {name: MB_DB_HOST, value: "newevent-db.ctwqo4go6jro.ap-south-1.rds.amazonaws.com"}
+            - {name: MB_DB_PORT, value: "5432"}
+            - {name: MB_DB_DBNAME, value: "metabasedb"}
+            - {name: MB_DB_USER, value: "postgres"}
+            - name: MB_DB_PASS
+              valueFrom:
+                secretKeyRef: {name: metabase-db, key: MB_DB_PASS}
+            - {name: JAVA_OPTS, value: "-Xmx768m"}
+          readinessProbe:
+            httpGet: {path: /api/health, port: 3000}
+            initialDelaySeconds: 45
+            periodSeconds: 10
+            failureThreshold: 20
+          resources:
+            requests: {memory: "512Mi", cpu: "100m"}
+            limits: {memory: "1280Mi", cpu: "1000m"}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: metabase
+spec:
+  type: NodePort
+  selector: {app: metabase}
+  ports:
+    - port: 3000
+      targetPort: 3000
+      nodePort: 30300

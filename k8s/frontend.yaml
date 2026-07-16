@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+spec:
+  selector:
+    app: frontend
+  ports:
+    - port: 80
+      targetPort: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: newevent
+spec:
+  ingressClassName: traefik
+  rules:
+    - http:
+        paths:
+          - path: /api/events
+            pathType: Prefix
+            backend:
+              service: {name: event-service, port: {number: 80}}
+          - path: /api/programs
+            pathType: Prefix
+            backend:
+              service: {name: program-service, port: {number: 80}}
+          - path: /api/registrations
+            pathType: Prefix
+            backend:
+              service: {name: registration-service, port: {number: 80}}
+          - path: /
+            pathType: Prefix
+            backend:
+              service: {name: frontend, port: {number: 80}}
+          - path: /api/analytics
+            pathType: Prefix
+            backend:
+              service: {name: analytics-service, port: {number: 80}}
