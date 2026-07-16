@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'frontend/**'
+      - 'Dockerfile'
       - 'k8s/frontend-rollout.yaml'
   workflow_dispatch:
 
@@ -28,7 +29,8 @@ jobs:
       - name: Build and push image
         uses: docker/build-push-action@v6
         with:
-          context: ./frontend
+          context: .
+	  file: ./Dockerfile
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/newevent-frontend:${{ steps.tag.outputs.tag }}
 
